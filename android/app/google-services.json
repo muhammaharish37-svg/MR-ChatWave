@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "978821905872",
+    "project_id": "mr-chatwave",
+    "storage_bucket": "mr-chatwave.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:978821905872:android:092c7459788f8434eccdd5",
+        "android_client_info": {
+          "package_name": "com.example.mr_chatwave"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeF0NW5Ny_isG71LwNrnu47WWdNx_l35I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:978821905872:android:bdd2a01bfaee4423eccdd5",
+        "android_client_info": {
+          "package_name": "com.mrchatwave.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeF0NW5Ny_isG71LwNrnu47WWdNx_l35I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
