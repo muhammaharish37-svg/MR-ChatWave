@@ -11,17 +11,27 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final phoneController = TextEditingController();
+  final otpController = TextEditingController();
 
   bool isLogin = true;
+  bool usePhone = false;
   bool loading = false;
+  bool codeSent = false;
 
-  Future<void> submit() async {
+  String? verificationId;
+
+  void showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> submitEmail() async {
     if (emailController.text.trim().isEmpty ||
         passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email likhein aur password kam az kam 6 characters ka rakhein'),
-        ),
+      showMessage(
+        'Email likhein aur password kam az kam 6 characters ka rakhein',
       );
       return;
     }
@@ -41,17 +51,82 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Authentication failed')),
-        );
-      }
+      showMessage(e.message ?? 'Authentication failed');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Something went wrong')),
-        );
+      showMessage('Something went wrong');
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> sendOTP() async {
+    final phone = phoneController.text.trim();
+
+    if (!phone.startsWith('+') || phone.length < 10) {
+      showMessage('Number country code ke sath likhein, misal: +923001234567');
+      return;
+    }
+
+    setState(() => loading = true);
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            await FirebaseAuth.instance.signInWithCredential(credential);
+            showMessage('Phone login successful!');
+          } on FirebaseAuthException catch (e) {
+            showMessage(e.message ?? 'Phone login failed');
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          showMessage(e.message ?? 'OTP send nahi ho saka');
+          if (mounted) setState(() => loading = false);
+        },
+        codeSent: (String id, int? resendToken) {
+          if (!mounted) return;
+          setState(() {
+            verificationId = id;
+            codeSent = true;
+            loading = false;
+          });
+          showMessage('OTP bhej diya gaya hai');
+        },
+        codeAutoRetrievalTimeout: (String id) {
+          verificationId = id;
+        },
+      );
+    } catch (e) {
+      showMessage('Error: $e');
+    } finally {
+      if (mounted && !codeSent) {
+        setState(() => loading = false);
       }
+    }
+  }
+
+  Future<void> verifyOTP() async {
+    if (verificationId == null || otpController.text.trim().length != 6) {
+      showMessage('6 digit OTP code likhein');
+      return;
+    }
+
+    setState(() => loading = true);
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId!,
+        smsCode: otpController.text.trim(),
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      showMessage('Phone login successful!');
+    } on FirebaseAuthException catch (e) {
+      showMessage(e.message ?? 'OTP verification failed');
+    } catch (e) {
+      showMessage('Something went wrong');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -61,11 +136,15 @@ class _AuthScreenState extends State<AuthScreen> {
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    phoneController.dispose();
+    otpController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    const green = Color(0xFF00A884);
+
     return Scaffold(
       backgroundColor: const Color(0xFF101820),
       body: Center(
@@ -73,7 +152,7 @@ class _AuthScreenState extends State<AuthScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const Icon(Icons.chat, size: 75, color: Color(0xFF00A884)),
+              const Icon(Icons.chat, size: 75, color: green),
               const SizedBox(height: 15),
               const Text(
                 'MR ChatWave',
@@ -85,54 +164,126 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
               const SizedBox(height: 30),
               Text(
-                isLogin ? 'Welcome Back!' : 'Create Your Account',
+                usePhone
+                    ? 'Phone Number Login'
+                    : isLogin
+                    ? 'Welcome Back!'
+                    : 'Create Your Account',
                 style: const TextStyle(color: Colors.white, fontSize: 22),
               ),
               const SizedBox(height: 25),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  prefixIcon: Icon(Icons.email, color: Color(0xFF00A884)),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  labelStyle: TextStyle(color: Colors.white70),
-                  prefixIcon: Icon(Icons.lock, color: Color(0xFF00A884)),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00A884),
-                    foregroundColor: Colors.white,
+
+              if (!usePhone) ...[
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.email, color: green),
+                    border: OutlineInputBorder(),
                   ),
-                  onPressed: loading ? null : submit,
-                  child: loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(isLogin ? 'LOGIN' : 'CREATE ACCOUNT'),
                 ),
-              ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.lock, color: green),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: green,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: loading ? null : submitEmail,
+                    child: loading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(isLogin ? 'LOGIN' : 'CREATE ACCOUNT'),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => isLogin = !isLogin),
+                  child: Text(
+                    isLogin
+                        ? "Don't have an account? Sign up"
+                        : 'Already have an account? Login',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ),
+              ],
+
+              if (usePhone) ...[
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number (+923001234567)',
+                    labelStyle: TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.phone, color: green),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (codeSent)
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Enter 6 Digit OTP',
+                      labelStyle: TextStyle(color: Colors.white70),
+                      prefixIcon: Icon(Icons.password, color: green),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: green,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: loading
+                        ? null
+                        : codeSent
+                        ? verifyOTP
+                        : sendOTP,
+                    child: loading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(codeSent ? 'VERIFY OTP' : 'SEND OTP'),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 12),
               TextButton(
-                onPressed: () => setState(() => isLogin = !isLogin),
+                onPressed: loading
+                    ? null
+                    : () {
+                        setState(() {
+                          usePhone = !usePhone;
+                          codeSent = false;
+                          verificationId = null;
+                          otpController.clear();
+                        });
+                      },
                 child: Text(
-                  isLogin
-                      ? "Don't have an account? Sign up"
-                      : 'Already have an account? Login',
+                  usePhone ? 'Login with Email' : 'Login with Phone Number',
                   style: const TextStyle(color: Colors.white70),
                 ),
               ),
