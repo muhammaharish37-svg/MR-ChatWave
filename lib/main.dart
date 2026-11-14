@@ -1,7 +1,13 @@
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'auth_screen.dart';
 
 Future<void> main() async {
@@ -23,7 +29,6 @@ class MRChatWave extends StatelessWidget {
     );
   }
 }
-
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -60,12 +65,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
 
-  final pages = [
-    'Chats',
-    'Status',
-    'Calls',
-    'Settings',
-  ];
+  final pages = ['Chats', 'Status', 'Calls', 'Settings'];
 
   @override
   Widget build(BuildContext context) {
@@ -99,10 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
           : Center(
               child: Text(
                 pages[selectedIndex],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 28),
               ),
             ),
       floatingActionButton: FloatingActionButton(
@@ -122,18 +119,12 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white60,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chats',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
           BottomNavigationBarItem(
             icon: Icon(Icons.circle_outlined),
             label: 'Status',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.call),
-            label: 'Calls',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.call), label: 'Calls'),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',
@@ -165,10 +156,7 @@ class ChatTile extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
-      subtitle: Text(
-        message,
-        style: const TextStyle(color: Colors.white70),
-      ),
+      subtitle: Text(message, style: const TextStyle(color: Colors.white70)),
       trailing: Text(
         time,
         style: const TextStyle(color: Colors.white54, fontSize: 12),
@@ -176,9 +164,6 @@ class ChatTile extends StatelessWidget {
     );
   }
 }
-
-
-
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -188,13 +173,60 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  File? _profileImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfilePhoto();
+  }
+
+  Future<void> _loadProfilePhoto() async {
+    final prefs = await SharedPreferences.getInstance();
+    final path = prefs.getString('profile_photo_path');
+    if (path != null && await File(path).exists() && mounted) {
+      setState(() {
+        _profileImage = File(path);
+      });
+    }
+  }
+
+  Future<void> _pickPhoto() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+      if (picked == null) return;
+
+      final directory = await getApplicationDocumentsDirectory();
+      final extension = picked.path.split('.').last;
+      final savedFile = await File(picked.path)
+          .copy('${directory.path}/profile_photo.$extension');
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profile_photo_path', savedFile.path);
+
+      if (!mounted) return;
+      setState(() {
+        _profileImage = savedFile;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated!')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Photo error: $e')));
+    }
+  }
+
   Future<void> _editName() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final controller = TextEditingController(
-      text: user.displayName ?? "",
-    );
+    final controller = TextEditingController(text: user.displayName ?? "");
 
     await showDialog(
       context: context,
@@ -203,9 +235,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: "Enter your name",
-          ),
+          decoration: const InputDecoration(hintText: "Enter your name"),
         ),
         actions: [
           TextButton(
@@ -230,9 +260,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               } catch (e) {
                 if (!dialogContext.mounted) return;
-                ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text("Error: $e")),
-                );
+                ScaffoldMessenger.of(dialogContext)
+                    .showSnackBar(SnackBar(content: Text("Error: $e")));
               }
             },
             child: const Text("SAVE"),
@@ -252,10 +281,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(24),
       children: [
         const SizedBox(height: 25),
-        const CircleAvatar(
-          radius: 55,
-          backgroundColor: Color(0xFF00A884),
-          child: Icon(Icons.person, size: 65, color: Colors.white),
+        Center(
+          child: GestureDetector(
+            onTap: _pickPhoto,
+            child: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 55,
+                  backgroundColor: const Color(0xFF00A884),
+                  backgroundImage: _profileImage != null
+                      ? FileImage(_profileImage!)
+                      : null,
+                  child: _profileImage == null
+                      ? const Icon(Icons.person, size: 65, color: Colors.white)
+                      : null,
+                ),
+                const Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Color(0xFF00A884),
+                    child: Icon(
+                      Icons.camera_alt,
+                      size: 19,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         Center(
