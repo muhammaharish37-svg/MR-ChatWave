@@ -270,23 +270,6 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ],
 
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: loading
-                    ? null
-                    : () {
-                        setState(() {
-                          usePhone = !usePhone;
-                          codeSent = false;
-                          verificationId = null;
-                          otpController.clear();
-                        });
-                      },
-                child: Text(
-                  usePhone ? 'Login with Email' : 'Login with Phone Number',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ),
             ],
           ),
         ),
