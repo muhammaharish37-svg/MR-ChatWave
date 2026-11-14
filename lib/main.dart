@@ -346,6 +346,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: const TextStyle(color: Colors.white),
           ),
         ),
+        ListTile(
+          leading: const Icon(Icons.info_outline, color: Color(0xFF00A884)),
+          title: const Text(
+            "About MR ChatWave",
+            style: TextStyle(color: Colors.white),
+          ),
+          subtitle: const Text(
+            "App information and founder",
+            style: TextStyle(color: Colors.white70),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AboutScreen()),
+            );
+          },
+        ),
         const SizedBox(height: 25),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
@@ -360,6 +378,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
           label: const Text("LOG OUT"),
         ),
       ],
+    );
+  }
+}
+
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF101820),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF075E54),
+        title: const Text("About MR ChatWave"),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          SizedBox(height: 24),
+          Icon(Icons.chat, size: 72, color: Color(0xFF00A884)),
+          SizedBox(height: 16),
+          Center(
+            child: Text(
+              "MR ChatWave",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SizedBox(height: 8),
+          Center(
+            child: Text(
+              "Connect the World",
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+          ),
+          Divider(color: Colors.white24, height: 40),
+          ListTile(
+            leading: Icon(Icons.person, color: Color(0xFF00A884)),
+            title: Text(
+              "Founder & CEO",
+              style: TextStyle(color: Colors.white70),
+            ),
+            subtitle: Text(
+              "Maher Madni Mushtaq",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.info_outline, color: Color(0xFF00A884)),
+            title: Text("App Version", style: TextStyle(color: Colors.white70)),
+            subtitle: Text("1.0.0", style: TextStyle(color: Colors.white)),
+          ),
+          ListTile(
+            leading: Icon(Icons.copyright, color: Color(0xFF00A884)),
+            title: Text("Copyright", style: TextStyle(color: Colors.white70)),
+            subtitle: Text(
+              "© 2026 MR ChatWave. All rights reserved.",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
