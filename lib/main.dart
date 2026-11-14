@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'auth_screen.dart';
 
@@ -66,6 +67,32 @@ class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
 
   final pages = ['Chats', 'Status', 'Calls', 'Settings'];
+
+  @override
+  void initState() {
+    super.initState();
+    _saveUserToFirestore();
+  }
+
+  Future<void> _saveUserToFirestore() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'uid': user.uid,
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore user save error: $e');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
