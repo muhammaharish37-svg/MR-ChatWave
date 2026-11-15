@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -9,6 +10,7 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final phoneController = TextEditingController();
@@ -28,7 +30,8 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> submitEmail() async {
-    if (emailController.text.trim().isEmpty ||
+    if ((!isLogin && nameController.text.trim().isEmpty) ||
+        emailController.text.trim().isEmpty ||
         passwordController.text.length < 6) {
       showMessage(
         'Email likhein aur password kam az kam 6 characters ka rakhein',
@@ -45,10 +48,36 @@ class _AuthScreenState extends State<AuthScreen> {
           password: passwordController.text.trim(),
         );
       } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        final credential =
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
+        final user = credential.user;
+        if (user != null) {
+          await user.updateDisplayName(nameController.text.trim());
+          await user.reload();
+
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+            'uid': user.uid,
+            'name': nameController.text.trim(),
+            'email': user.email,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          await FirebaseFirestore.instance
+              .collection('publicProfiles')
+              .doc(user.uid)
+              .set({
+            'uid': user.uid,
+            'name': nameController.text.trim(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
       }
     } on FirebaseAuthException catch (e) {
       showMessage(e.message ?? 'Authentication failed');
@@ -134,6 +163,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     phoneController.dispose();
@@ -174,6 +204,18 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 25),
 
               if (!usePhone) ...[
+                if (!isLogin) ...[
+                  TextField(
+                    controller: nameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      prefixIcon: Icon(Icons.person, color: green),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,

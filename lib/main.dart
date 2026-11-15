@@ -79,13 +79,26 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user == null) return;
 
     try {
+      final name = user.displayName?.trim().isNotEmpty == true
+          ? user.displayName!.trim()
+          : 'ChatWave User';
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .set({
         'uid': user.uid,
-        'name': user.displayName ?? '',
+        'name': name,
         'email': user.email ?? '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('publicProfiles')
+          .doc(user.uid)
+          .set({
+        'uid': user.uid,
+        'name': name,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
@@ -114,14 +127,74 @@ class _HomeScreenState extends State<HomeScreen> {
       body: selectedIndex == 3
           ? const ProfileScreen()
           : selectedIndex == 0
-          ? ListView(
-              children: const [
-                ChatTile('Ali Khan', 'Hello bro!', '10:30'),
-                ChatTile('Ahmed', 'How are you?', '09:45'),
-                ChatTile('Sara', 'Good morning ❤️', 'Yesterday'),
-                ChatTile('Usman', 'See you soon!', 'Yesterday'),
-                ChatTile('Friends Group', 'Welcome everyone', 'Monday'),
-              ],
+          ? StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('publicProfiles')
+                  .orderBy('name')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text(
+                      'Users load nahi ho sake',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  );
+                }
+
+                final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                final users = snapshot.data?.docs
+                        .where((doc) => doc.id != currentUid)
+                        .toList() ??
+                    [];
+
+                if (users.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Abhi koi doosra registered user nahi hai',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final data = users[index].data();
+                    final name = data['name'] as String? ?? 'ChatWave User';
+
+                    return ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFF00A884),
+                        child: Icon(Icons.person, color: Colors.white),
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'MR ChatWave user',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(name: name),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
             )
           : Center(
               child: Text(
