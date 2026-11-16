@@ -216,7 +216,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ChatScreen(name: name),
+                            builder: (context) => ChatScreen(
+                              name: name,
+                              receiverId: users[index].id,
+                            ),
                           ),
                         );
                       },
@@ -264,46 +267,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class ChatTile extends StatelessWidget {
-  final String name;
-  final String message;
-  final String time;
-
-  const ChatTile(this.name, this.message, this.time, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ChatScreen(name: name)),
-        );
-      },
-      leading: const CircleAvatar(
-        backgroundColor: Color(0xFF00A884),
-        child: Icon(Icons.person, color: Colors.white),
-      ),
-      title: Text(
-        name,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      subtitle: Text(message, style: const TextStyle(color: Colors.white70)),
-      trailing: Text(
-        time,
-        style: const TextStyle(color: Colors.white54, fontSize: 12),
-      ),
-    );
-  }
-}
-
 class ChatScreen extends StatefulWidget {
   final String name;
+  final String receiverId;
 
-  const ChatScreen({super.key, required this.name});
+  const ChatScreen({super.key, required this.name, required this.receiverId});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
