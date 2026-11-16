@@ -4,12 +4,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'auth_screen.dart';
+import 'security/secure_key_storage.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +74,36 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _saveUserToFirestore();
+    _testLocalKeyStorage();
+  }
+
+  Future<void> _testLocalKeyStorage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final firstKey = await SecureKeyStorage.getOrCreateTestKey(user.uid);
+      final secondKey = await SecureKeyStorage.getOrCreateTestKey(user.uid);
+
+      final passed =
+          firstKey.length == 32 &&
+          secondKey.length == 32 &&
+          listEquals(firstKey, secondKey);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            passed
+                ? 'Local key storage test successful'
+                : 'Local key storage test failed',
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Local key storage test error: ${e.runtimeType}');
+    }
   }
 
   Future<void> _saveUserToFirestore() async {
@@ -83,10 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? user.displayName!.trim()
           : 'ChatWave User';
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'name': name,
         'email': user.email ?? '',
@@ -97,15 +126,14 @@ class _HomeScreenState extends State<HomeScreen> {
           .collection('publicProfiles')
           .doc(user.uid)
           .set({
-        'uid': user.uid,
-        'name': name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'uid': user.uid,
+            'name': name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore user save error: $e');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +175,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 final currentUid = FirebaseAuth.instance.currentUser?.uid;
-                final users = snapshot.data?.docs
+                final users =
+                    snapshot.data?.docs
                         .where((doc) => doc.id != currentUid)
                         .toList() ??
                     [];
@@ -248,9 +277,7 @@ class ChatTile extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => ChatScreen(name: name),
-          ),
+          MaterialPageRoute(builder: (context) => ChatScreen(name: name)),
         );
       },
       leading: const CircleAvatar(
